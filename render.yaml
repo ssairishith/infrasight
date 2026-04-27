@@ -45,3 +45,7 @@ services:
           type: web
           name: infrasight-backend
           property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
