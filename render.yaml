@@ -24,6 +24,7 @@ services:
         fromService:
           type: web
           name: infrasight-ai
+          envVar: RENDER_EXTERNAL_URL
           
       - key: SUPABASE_URL
         sync: false # Set this in Render Dashboard
@@ -44,6 +45,7 @@ services:
         fromService:
           type: web
           name: infrasight-backend
+          envVar: RENDER_EXTERNAL_URL
           
     routes:
       - type: rewrite
