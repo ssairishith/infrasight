@@ -48,7 +48,7 @@ export default function Admin() {
   // ── Fetch ─────────────────────────────────────────────────────────
   const fetchIssues = useCallback(async () => {
     try {
-      const res = await fetch(`/issues`);
+      const res = await fetch(`${BACKEND}/issues`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setIssues(data);
@@ -146,7 +146,7 @@ export default function Admin() {
 
   // ── Approval actions ──────────────────────────────────────────────
   const patch = async (id, body) => {
-    const res = await fetch(`/issues/${id}`, {
+    const res = await fetch(`${BACKEND}/issues/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
