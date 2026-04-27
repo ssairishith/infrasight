@@ -34,7 +34,7 @@ services:
 
   # 3. The Frontend (Static Site)
   - type: web
-    name: infrasight-frontend
+    name: infrasight
     env: static
     rootDir: frontend
     buildCommand: npm install --include=dev && chmod +x node_modules/.bin/vite && node_modules/.bin/vite build
