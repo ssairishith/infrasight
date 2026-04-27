@@ -31,12 +31,13 @@ services:
         sync: false # Set this in Render Dashboard (Groq)
 
   # 3. The Frontend (Static Site)
-  - type: static_site
+  # 3. The Frontend (Static Site)
+  - type: web
     name: infrasight-frontend
     env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishPath: ./dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_BACKEND_URL
         fromService:
