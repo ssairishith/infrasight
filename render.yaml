@@ -37,7 +37,7 @@ services:
     name: infrasight-frontend
     env: static
     rootDir: frontend
-    buildCommand: npm install && run build
+    buildCommand: npm install --include=dev && chmod +x node_modules/.bin/vite && node_modules/.bin/vite build
     staticPublishPath: ./dist
     envVars:
       - key: VITE_BACKEND_URL
