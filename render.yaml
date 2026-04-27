@@ -1,0 +1,45 @@
+services:
+  # 1. The AI Analyzer (Python)
+  - type: web
+    name: infrasight-ai
+    env: python
+    rootDir: ai-analyzer
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: ANALYZER_PORT
+        value: 10000 # Render's default port
+
+  # 2. The Backend (Node.js)
+  - type: web
+    name: infrasight-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ANALYZER_URL
+        fromService:
+          type: web
+          name: infrasight-ai
+          property: host
+      - key: SUPABASE_URL
+        sync: false # Set this in Render Dashboard
+      - key: SUPABASE_KEY
+        sync: false # Set this in Render Dashboard
+      - key: AI_API_KEY
+        sync: false # Set this in Render Dashboard (Groq)
+
+  # 3. The Frontend (Static Site)
+  - type: web
+    name: infrasight-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishPath: ./dist
+    envVars:
+      - key: VITE_BACKEND_URL
+        fromService:
+          type: web
+          name: infrasight-backend
+          property: host

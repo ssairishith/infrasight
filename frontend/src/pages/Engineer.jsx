@@ -51,10 +51,18 @@ export default function Engineer() {
   // ── Fetch issues ──────────────────────────────────────────────────
   const fetchIssues = useCallback(async () => {
     try {
-const res = await fetch(`/issues`);
+      const res = await fetch(`/issues`);
       const data = await res.json();
-      setIssues(data);
-    } catch {}
+      if (Array.isArray(data)) {
+        setIssues(data);
+      } else {
+        console.error("fetch issues error:", data);
+        setIssues([]);
+      }
+    } catch (err) {
+        console.error("fetch issues failed:", err);
+        setIssues([]);
+    }
   }, []);
 
   useEffect(() => {

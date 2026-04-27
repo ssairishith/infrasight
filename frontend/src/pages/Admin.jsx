@@ -47,9 +47,19 @@ export default function Admin() {
 
   // ── Fetch ─────────────────────────────────────────────────────────
   const fetchIssues = useCallback(async () => {
-    const res = await fetch(`/issues`);
-    const data = await res.json();
-    setIssues(data);
+    try {
+      const res = await fetch(`/issues`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setIssues(data);
+      } else {
+        console.error("fetch issues error:", data);
+        setIssues([]);
+      }
+    } catch (err) {
+      console.error("fetch issues failed:", err);
+      setIssues([]);
+    }
   }, []);
 
   useEffect(() => {
