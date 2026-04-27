@@ -21,10 +21,7 @@ services:
     startCommand: npm start
     envVars:
       - key: ANALYZER_URL
-        fromService:
-          type: web
-          name: infrasight-ai
-          envVar: RENDER_EXTERNAL_URL
+        sync: false
           
       - key: SUPABASE_URL
         sync: false # Set this in Render Dashboard
@@ -42,10 +39,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_BACKEND_URL
-        fromService:
-          type: web
-          name: infrasight-backend
-          envVar: RENDER_EXTERNAL_URL
+        sync: false
           
     routes:
       - type: rewrite
