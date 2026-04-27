@@ -51,7 +51,7 @@ export default function Engineer() {
   // ── Fetch issues ──────────────────────────────────────────────────
   const fetchIssues = useCallback(async () => {
     try {
-      const res = await fetch(`/issues`);
+      const res = await fetch(`${BACKEND}/issues`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setIssues(data);
@@ -145,7 +145,7 @@ export default function Engineer() {
     setAnalysis(null);
     setAnalyzing(true);
     try {
-const res = await fetch(`/issues/analyze`, {
+const res = await fetch(`${BACKEND}/issues/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: b64, roadType }),
@@ -194,7 +194,7 @@ const res = await fetch(`/issues/analyze`, {
         status: "pending",
         admin_message: "",
       };
-await fetch(`/issues`, {
+await fetch(`${BACKEND}/issues`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -210,7 +210,7 @@ await fetch(`/issues`, {
   };
 
   const updateStatus = async (id, status) => {
-await fetch(`/issues/${id}`, {
+await fetch(`${BACKEND}/issues/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
