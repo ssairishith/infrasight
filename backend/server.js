@@ -6,9 +6,19 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
 
-app.use(cors());
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+const io = new Server(server, {
+  cors: corsOptions,
+  transports: ["polling", "websocket"], // polling first for Render free tier
+});
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "20mb" }));
 
 app.set("io", io);
