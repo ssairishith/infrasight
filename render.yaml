@@ -31,7 +31,7 @@ services:
         sync: false # Set this in Render Dashboard (Groq)
 
   # 3. The Frontend (Static Site)
-  - type: static
+  - type: static_site
     name: infrasight-frontend
     env: static
     rootDir: frontend
