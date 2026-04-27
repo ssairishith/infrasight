@@ -4,6 +4,7 @@ services:
     name: infrasight-ai
     env: python
     rootDir: ai-analyzer
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
@@ -15,6 +16,7 @@ services:
     name: infrasight-backend
     env: node
     rootDir: backend
+    plan: free
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -30,7 +32,6 @@ services:
       - key: AI_API_KEY
         sync: false # Set this in Render Dashboard (Groq)
 
-  # 3. The Frontend (Static Site)
   # 3. The Frontend (Static Site)
   - type: web
     name: infrasight-frontend
