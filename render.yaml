@@ -24,7 +24,7 @@ services:
         fromService:
           type: web
           name: infrasight-ai
-          property: host
+          property: url
       - key: SUPABASE_URL
         sync: false # Set this in Render Dashboard
       - key: SUPABASE_KEY
@@ -44,7 +44,7 @@ services:
         fromService:
           type: web
           name: infrasight-backend
-          property: host
+          property: url
     routes:
       - type: rewrite
         source: /*
