@@ -21,10 +21,8 @@ services:
     startCommand: npm start
     envVars:
       - key: ANALYZER_URL
-        fromService:
-          type: web
-          name: infrasight-ai
-          property: url
+        sync: false
+          
       - key: SUPABASE_URL
         sync: false # Set this in Render Dashboard
       - key: SUPABASE_KEY
@@ -34,17 +32,15 @@ services:
 
   # 3. The Frontend (Static Site)
   - type: web
-    name: infrasight-frontend
+    name: infrasight
     env: static
     rootDir: frontend
     buildCommand: npm install --include=dev && chmod +x node_modules/.bin/vite && node_modules/.bin/vite build
     staticPublishPath: ./dist
     envVars:
       - key: VITE_BACKEND_URL
-        fromService:
-          type: web
-          name: infrasight-backend
-          property: url
+        sync: false
+          
     routes:
       - type: rewrite
         source: /*
