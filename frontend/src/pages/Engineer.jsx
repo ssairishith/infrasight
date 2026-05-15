@@ -40,6 +40,7 @@ export default function Engineer() {
   // AI analysis state
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState(null); // full AI response
+  const [analyzerError, setAnalyzerError] = useState(null); // 502/503 downstream errors
 
   // GPS state
   const [gpsStatus, setGpsStatus] = useState("idle"); // idle | loading | found | error
@@ -143,14 +144,24 @@ export default function Engineer() {
   const addImageAndAnalyze = async (b64) => {
     setImages((prev) => [...prev, b64]);
     setAnalysis(null);
+    setAnalyzerError(null);
     setAnalyzing(true);
     try {
-const res = await fetch(`${BACKEND}/issues/analyze`, {
+      const res = await fetch(`${BACKEND}/issues/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: b64, roadType }),
       });
       const data = await res.json();
+
+      // Handle explicit downstream failures returned by the backend
+      if (res.status === 502 || res.status === 503) {
+        setAnalyzerError(data.error || "Analyzer service is currently unavailable.");
+        setToast({ message: "Analyzer service is down — check back shortly", type: "error" });
+        setAnalyzing(false);
+        return;
+      }
+
       setAnalysis(data);
       if (data.detected) {
         setToast({ message: `${data.type} detected — ${data.severity} severity`, type: "success" });
@@ -312,7 +323,7 @@ await fetch(`${BACKEND}/issues/${id}`, {
         </div>
 
         {/* ── Section 2: AI Detection Result ── */}
-        {(analyzing || analysis) && (
+        {(analyzing || analysis || analyzerError) && (
           <div className={`rounded-2xl border p-5 transition-all ${sc ? `${sc.bg} ${sc.border}` : "border-white/8 bg-white/[0.02]"}`}>
             <h2 className="font-display text-xs text-white/50 tracking-[0.2em] mb-4">02 / AI DETECTION</h2>
 
@@ -323,7 +334,19 @@ await fetch(`${BACKEND}/issues/${id}`, {
               </div>
             )}
 
-            {!analyzing && analysis && (
+            {/* Analyzer service error card */}
+            {!analyzing && analyzerError && (
+              <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                <span className="text-red-400 text-lg mt-0.5">⚠</span>
+                <div>
+                  <div className="font-display text-xs text-red-400 mb-1">ANALYZER SERVICE UNAVAILABLE</div>
+                  <p className="text-sm text-white/60">{analyzerError}</p>
+                  <p className="text-xs text-white/30 mt-2">The AI analysis sub-service is down or unreachable. The backend already retried 3 times. Check the <code className="text-red-300/70">infrasight-ai</code> service logs on Render.</p>
+                </div>
+              </div>
+            )}
+
+            {!analyzing && analysis && !analyzerError && (
               <div className="space-y-4">
                 {/* Detection badge */}
                 <div className="flex items-center gap-3 flex-wrap">

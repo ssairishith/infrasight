@@ -31,7 +31,12 @@ def before_request():
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint."""
-    return jsonify({"status": "ok", "service": "pothole-analyzer"}), 200
+    status = "ok" if analyzer is not None else "degraded"
+    return jsonify({
+        "status": status,
+        "service": "pothole-analyzer",
+        "analyzer_ready": analyzer is not None,
+    }), 200 if status == "ok" else 503
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -92,4 +97,5 @@ def index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     logger.info(f"Starting analyzer service on port {port}")
+    init_analyzer()  # eagerly initialize so first request isn't slow
     app.run(host="0.0.0.0", port=port, debug=False)

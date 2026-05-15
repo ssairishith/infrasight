@@ -2,6 +2,29 @@ const express = require("express");
 const router = express.Router();
 const { createClient } = require("@supabase/supabase-js");
 
+// ─── Helper: fetch with exponential backoff + per-request timeout ──
+async function fetchWithRetry(url, options = {}, { retries = 3, baseDelayMs = 300, timeoutMs = 10_000 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res; // let caller check res.ok
+    } catch (err) {
+      clearTimeout(timer);
+      lastErr = err;
+      if (attempt < retries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        console.warn(`[retry] attempt ${attempt + 1} failed – retrying in ${delay}ms:`, err.message);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -133,16 +156,36 @@ router.post("/analyze", async (req, res) => {
   }
 
   try {
-    // Step 1: Get detection + dimensions from local YOLOv8 analyzer
+    // Step 1: Get detection + dimensions from YOLOv8 analyzer (with retries)
     const analyzerUrl = process.env.ANALYZER_URL || "http://localhost:5001";
-    const analyzerResponse = await fetch(`${analyzerUrl}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image, roadType: roadType || "arterial" }),
-    });
+    let analyzerResponse;
+    try {
+      analyzerResponse = await fetchWithRetry(
+        `${analyzerUrl}/analyze`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image, roadType: roadType || "arterial" }),
+        },
+        { retries: 3, baseDelayMs: 300, timeoutMs: 10_000 }
+      );
+    } catch (downstreamErr) {
+      console.error("Analyzer service unreachable after retries:", downstreamErr.message);
+      return res.status(502).json({
+        error: "Analyzer service is currently unavailable. Please try again shortly.",
+        detail: downstreamErr.message,
+        detected: false,
+      });
+    }
 
     if (!analyzerResponse.ok) {
-      throw new Error(`Analyzer service error: ${analyzerResponse.status}`);
+      const errBody = await analyzerResponse.text().catch(() => "");
+      console.error(`Analyzer returned ${analyzerResponse.status}:`, errBody);
+      return res.status(502).json({
+        error: `Analyzer service returned an error (${analyzerResponse.status}).`,
+        detail: errBody,
+        detected: false,
+      });
     }
 
     const yoloResult = await analyzerResponse.json();
@@ -170,9 +213,10 @@ router.post("/analyze", async (req, res) => {
 
     return res.json(finalResult);
   } catch (err) {
-    console.error("Analysis error:", err.message);
+    console.error("Unexpected analysis error:", err.message);
     return res.status(500).json({
-      error: err.message,
+      error: "An unexpected error occurred during analysis.",
+      detail: err.message,
       detected: false,
     });
   }
