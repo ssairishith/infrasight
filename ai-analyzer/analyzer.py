@@ -36,51 +36,71 @@ class PotholeAnalyzer:
 
     def detect_damage(self, image_np):
         """
-        Detect road damage (potholes, cracks) using YOLO + OpenCV analysis.
-        Returns detection results with confidence.
+        Detect road damage (potholes, cracks) using OpenCV analysis.
+        Strategy: potholes are DARK regions on lighter asphalt → we invert the
+        threshold so dark areas become white blobs, then measure their area.
+        A secondary Canny edge pass catches thin cracks with high edge density.
         """
         if image_np is None:
             return {"detected": False, "confidence": 0}
 
         height, width = image_np.shape[:2]
-        
-        # Convert to grayscale for edge detection
-        gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
-        
-        # Apply adaptive thresholding to find dark regions (potential damage)
-        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY, 11, 2)
-        
-        # Morphological operations to clean up
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        morph = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-        
-        # Find contours
-        contours, _ = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        if not contours:
-            return {"detected": False, "confidence": 0.0}
-        
-        # Filter contours by area (remove noise)
-        valid_contours = [c for c in contours if cv2.contourArea(c) > 100]
-        
-        if not valid_contours:
-            return {"detected": False, "confidence": 0.0}
-        
-        # Calculate damage metrics
-        total_damage_area = sum(cv2.contourArea(c) for c in valid_contours)
         image_area = height * width
-        damage_ratio = total_damage_area / image_area
-        
-        # Confidence based on damage area
-        confidence = min(damage_ratio * 10, 0.95)
-        
+
+        # ── Pass 1: Dark-region (pothole) detection ──────────────────
+        gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+
+        # Adaptive threshold: pixels DARKER than local neighbourhood → 255
+        # THRESH_BINARY_INV means dark pixels get value 255 (foreground)
+        thresh = cv2.adaptiveThreshold(
+            blurred, 255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,  # ← was THRESH_BINARY (inverted → now correct)
+            21, 4
+        )
+
+        # MORPH_CLOSE fills holes INSIDE the dark region (pothole interior)
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel_close)
+
+        # Remove tiny speckles (salt-and-pepper noise)
+        kernel_open = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        cleaned = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel_open)
+
+        contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Min contour area scales with image size (0.05% of image)
+        min_area = max(200, image_area * 0.0005)
+        valid_contours = [c for c in contours if cv2.contourArea(c) > min_area]
+
+        dark_area = sum(cv2.contourArea(c) for c in valid_contours)
+        dark_ratio = dark_area / image_area
+
+        # ── Pass 2: Edge-density (crack) detection ───────────────────
+        edges = cv2.Canny(blurred, 50, 150)
+        edge_density = np.sum(edges > 0) / image_area
+
+        # ── Combine both signals ─────────────────────────────────────
+        # dark_ratio * 15 so even a small pothole (0.3% area) hits 0.05 confidence
+        dark_confidence = min(dark_ratio * 15, 0.95)
+        edge_confidence = min(edge_density * 5, 0.95)
+        combined_confidence = max(dark_confidence, edge_confidence * 0.6)
+
+        # Detection threshold: 0.03 (≈ 0.2% damage area, realistic for photos)
+        detected = combined_confidence > 0.03
+
+        logger.info(
+            f"detect_damage: dark_ratio={dark_ratio:.4f}, edge_density={edge_density:.4f}, "
+            f"combined_conf={combined_confidence:.3f}, detected={detected}"
+        )
+
         return {
-            "detected": confidence > 0.15,
-            "damage_area_px": total_damage_area,
-            "confidence": round(confidence, 3),
+            "detected": detected,
+            "damage_area_px": int(dark_area),
+            "confidence": round(combined_confidence, 3),
             "contours_count": len(valid_contours),
-            "image_dims": {"height": height, "width": width}
+            "image_dims": {"height": height, "width": width},
         }
 
     def estimate_dimensions(self, image_np, detection):
